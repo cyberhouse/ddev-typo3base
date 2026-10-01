@@ -11,10 +11,11 @@ set -eu
 
 # minimum version of ddev_version_constraint in .ddev/config.yaml, e.g. ">= 1.25.0" -> v1.25.0
 DDEV_VERSION=v$(sed -n 's/^ddev_version_constraint: *"[^0-9]*\([0-9.]*\)".*/\1/p' .ddev/config.yaml)
+DDEV_ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
 CI_HOME="$BITBUCKET_CLONE_DIR/.ci-home"
 
 apk add --no-cache bash curl sudo
-curl -fsSL "https://github.com/ddev/ddev/releases/download/${DDEV_VERSION}/ddev_linux-amd64.${DDEV_VERSION}.tar.gz" \
+curl -fsSL "https://github.com/ddev/ddev/releases/download/${DDEV_VERSION}/ddev_linux-${DDEV_ARCH}.${DDEV_VERSION}.tar.gz" \
     | tar -xz -C /usr/local/lib ddev
 
 # ddev refuses to run as root, global ddev config must live inside the clone dir
@@ -29,8 +30,9 @@ chmod +x /usr/local/bin/ddev
 rm -f .ddev/docker-compose.*.yaml
 printf "omit_containers: [db]\n" > .ddev/config.ci.yaml
 
-# composer auth from repository variable, composer cache inside clone dir (bitbucket cache)
-printf "COMPOSER_AUTH='%s'\nCOMPOSER_CACHE_DIR=/var/www/html/.ci-home/composer\n" "${COMPOSER_AUTH:-\{\}}" > .ddev/.env
+# composer auth from repository variable, composer cache inside clone dir (bitbucket cache),
+# appended to keep variables of the project
+printf "\nCOMPOSER_AUTH='%s'\nCOMPOSER_CACHE_DIR=/var/www/html/.ci-home/composer\n" "${COMPOSER_AUTH:-\{\}}" >> .ddev/.env
 
 # skip the initial setup hook of .ddev/config.yaml (no database and datasets in the pipeline)
 mkdir -p var/transient && touch var/transient/ENABLE_INSTALL_TOOL

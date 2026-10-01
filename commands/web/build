@@ -27,7 +27,13 @@ build_be() {
 
     eval "links=(${BUILD_LINKS:-})"
     for link in "${links[@]}"; do
-        ln -sfn "../$link" "public/$(basename "$link")"
+        target="public/$(basename "$link")"
+        # ln would silently create the link inside an existing directory
+        if [ -d "$target" ] && [ ! -L "$target" ]; then
+            echo "$target is a directory, expected a link to $link" >&2
+            exit 1
+        fi
+        ln -sfn "../$link" "$target"
     done
 }
 

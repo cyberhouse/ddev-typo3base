@@ -4,35 +4,19 @@
 ## Description: Open a bash console on a remote server of .mage.yml
 ## Usage: ssh-remote [environment]
 ## Aliases: bash-ssh
-## Example: "ddev ssh-remote prod", "ddev ssh-remote" (select with arrow keys)
+## Example: "ddev ssh-remote prod", "ddev ssh-remote pl" (unique prefix), "ddev ssh-remote" (select with arrow keys)
 
 set -euo pipefail
 
-# "list": environments of .mage.yml (one per line), "get <env or unique prefix>": user, host, port, ssh flags and path (one per line)
+# query .magephp.environments with yq of the ddev web image - no running project and no vendor/ needed
 mage() {
-    ddev exec php -- "$@" <<'PHP'
-<?php
-require 'vendor/autoload.php';
-$environments = Symfony\Component\Yaml\Yaml::parseFile('.mage.yml')['magephp']['environments'] ?? [];
-if ($argv[1] === 'list') {
-    echo implode("\n", array_keys($environments)), "\n";
-    exit;
-}
-$search = $argv[2] ?? '';
-$matches = isset($environments[$search]) ? [$search] : array_filter(array_keys($environments), fn ($name) => str_starts_with($name, $search));
-if (count($matches) === 1) {
-    $environment = $environments[reset($matches)];
-    [$host, $port] = array_pad(explode(':', $environment['hosts'][0]), 2, '22');
-    echo implode("\n", [$environment['user'], $host, $port, $environment['ssh']['flags'] ?? '', $environment['host_path']]), "\n";
-}
-PHP
+    docker run --rm -i --entrypoint yq "$DDEV_WEBIMAGE" --yaml-fix-merge-anchor-to-spec=true \
+        "explode(.) | .magephp.environments | $1" < .mage.yml
 }
 
 # arrow key menu on stderr, sets $stage
 select_stage() {
-    local environments=() selected=0 count key i
-    while IFS= read -r line; do environments+=("$line"); done < <(mage list)
-    count=${#environments[@]}
+    local selected=0 count=${#environments[@]} key i
 
     trap 'printf "\e[?25h" >&2' EXIT
     printf "Select environment (↑/↓, Enter):\n\e[?25l" >&2
@@ -57,14 +41,28 @@ select_stage() {
     stage=${environments[$selected]}
 }
 
+environments=()
+while IFS= read -r line; do environments+=("$line"); done < <(mage 'keys | .[]')
+
 stage=${1:-}
 if [ -z "$stage" ]; then
     if [ -t 0 ]; then select_stage; else read -r stage; fi
 fi
 
+# exact name or unique prefix
+matches=()
+for name in "${environments[@]}"; do
+    if [ "$name" = "$stage" ]; then
+        matches=("$name")
+        break
+    fi
+    case "$name" in "$stage"*) matches+=("$name") ;; esac
+done
+[ "${#matches[@]}" -eq 1 ] || { echo "Unknown or ambiguous environment '$stage', available: ${environments[*]}" >&2; exit 1; }
+
+# user, host, port, ssh flags and path (one per line)
 remote=()
-while IFS= read -r line; do remote+=("$line"); done < <(mage get "$stage")
-[ "${#remote[@]}" -eq 5 ] || { echo "Unknown or ambiguous environment '$stage', available: $(mage list | tr '\n' ' ')" >&2; exit 1; }
+while IFS= read -r line; do remote+=("$line"); done < <(mage '.["'"${matches[0]}"'"] | [.user, (.hosts[0] | split(":") | .[0]), (.hosts[0] | split(":") | .[1] // "22"), (.ssh.flags // ""), .host_path] | .[]')
 
 printf "\e[1;46m ssh -t %s-p %s -l %s %s 'cd %s/current; bash --login' \e[0m\n" "${remote[3]:+${remote[3]} }" "${remote[2]}" "${remote[0]}" "${remote[1]}" "${remote[4]}" >&2
 # shellcheck disable=SC2086 # ssh flags must be split

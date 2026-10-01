@@ -12,8 +12,11 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 ## Installation / update
 
 ```
-ddev add-on get cyberhouse/ddev-typo3base --version vX.Y.Z
+DDEV_GITHUB_TOKEN=$(gh auth token) ddev add-on get cyberhouse/ddev-typo3base --version vX.Y.Z
 ```
+
+This repository is private: the token of your own GitHub CLI login is used (`gh auth login` once, member of the cyberhouse
+organization), there is no shared token. Projects and pipelines don't need it, they use the committed files.
 
 The files are copied to `.ddev/` and committed with the project, so every project is pinned to a version.
 An update is the same command with a newer version.
@@ -37,13 +40,14 @@ hooks:
 
 ## TYPO3 versions
 
-`init` uses `install:fixfolderstructure`, `database:updateschema`, `extension:setup` and `backend:createadmin`
-(TYPO3 + helhum/typo3-console) and stops if one of them is missing. Commands of new TYPO3 versions are added in a new
-major version of this add-on, projects update the add-on together with TYPO3.
+`init` uses the TYPO3 core commands `extension:setup`, `backend:user:create` and `cache:flush`.
+`install:fixfolderstructure` and `database:updateschema` of helhum/typo3-console run only if installed - they are needed
+for datasets older than the code (`extension:setup` reads `be_users` before it updates the schema).
+Changed commands of new TYPO3 versions are added in a new major version of this add-on, projects update it together with TYPO3.
 
 | Add-on | Tested with |
 |---|---|
-| v1 | TYPO3 14, typo3-console 9 |
+| v1 | TYPO3 14, typo3-console 9 (optional) |
 
 ## Project specific changes
 

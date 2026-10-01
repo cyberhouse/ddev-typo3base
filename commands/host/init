@@ -7,33 +7,37 @@
 
 set -euo pipefail
 
+# download to a temporary file first, an aborted download must not be taken for a complete dataset (urls: web_environment)
+fetch() {
+    [ -f ".ddev/data/$1" ] || ddev exec "curl -fL --connect-timeout 10 -o .ddev/data/$1.part \"\$$2\" && mv .ddev/data/$1.part .ddev/data/$1"
+}
+
 ddev build
 
-# the TYPO3 commands below differ between TYPO3 / typo3-console versions
-available=$(ddev exec ./vendor/bin/typo3 list --raw)
-for command in install:fixfolderstructure database:updateschema extension:setup backend:createadmin; do
-    grep -q "^$command " <<< "$available" || {
-        echo "TYPO3 command '$command' is missing, use a ddev-typo3base version matching this TYPO3 version" >&2
-        exit 1
-    }
-done
-
 mkdir -p .ddev/data
-# urls: web_environment in .ddev/config.yaml
-[ -f .ddev/data/typo3.sql.gz ] || ddev exec 'curl -fL --connect-timeout 10 -o .ddev/data/typo3.sql.gz "$DATASET_DATABASE_URL"'
-[ -f .ddev/data/data.tar.gz ] || ddev exec 'curl -fL --connect-timeout 10 -o .ddev/data/data.tar.gz "$DATASET_FILES_URL"'
+fetch typo3.sql.gz DATASET_DATABASE_URL
+fetch data.tar.gz DATASET_FILES_URL
 [ -f config/system/settings.php ] || printf '<?php return [];' > config/system/settings.php
 
 # import into an empty database only (like the former mysql entrypoint)
 [ "$(ddev mysql -N -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()')" != "0" ] \
     || ddev import-db --file=.ddev/data/typo3.sql.gz
 ddev exec tar -xzf .ddev/data/data.tar.gz -C public/
-# bootstrap of the deployment (.mage.yml), but schema first as the dataset can be older than the code
-ddev exec ./vendor/bin/typo3 install:fixfolderstructure
-ddev exec ./vendor/bin/typo3 database:updateschema
-ddev exec ./vendor/bin/typo3 extension:setup
+
+# bootstrap of the deployment (.mage.yml) with TYPO3 core commands, typo3-console commands only if installed
+# (schema first, as extension:setup needs a current be_users table and the dataset can be older than the code)
+available=$(ddev exec ./vendor/bin/typo3 list --raw)
+for command in install:fixfolderstructure database:updateschema; do
+    if grep -q "^$command " <<< "$available"; then
+        ddev exec ./vendor/bin/typo3 "$command"
+    fi
+done
+ddev exec ./vendor/bin/typo3 extension:setup || {
+    echo "extension:setup failed - a dataset older than the code needs helhum/typo3-console (database:updateschema)" >&2
+    exit 1
+}
 # credentials: web_environment in .ddev/config.yaml, silently skipped if the user already exists
-ddev exec './vendor/bin/typo3 backend:createadmin "$BACKEND_ADMIN_USERNAME" "$BACKEND_ADMIN_PASSWORD" > /dev/null 2>&1 || true'
+ddev exec './vendor/bin/typo3 backend:user:create -n -a -u "$BACKEND_ADMIN_USERNAME" -p "$BACKEND_ADMIN_PASSWORD" > /dev/null 2>&1 || true'
 ddev exec ./vendor/bin/typo3 cache:flush
 ddev exec 'mkdir -p var/transient && printf KEEP_FILE > var/transient/ENABLE_INSTALL_TOOL'
 
