@@ -5,6 +5,7 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 | File | Purpose |
 |---|---|
 | `commands/web/build` | `ddev build [be\|fe] [--prod]` - composer + frontend build, the pipeline runs the same command |
+| `commands/web/serve` | `ddev serve` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`) |
 | `commands/host/init` | initial setup (build, datasets, database import into an empty database, TYPO3 bootstrap, admin user) |
 | `commands/host/ssh-remote` | `ddev ssh-remote [environment]` / `ddev bash-ssh` - bash console on a server of `.mage.yml` |
 | `bitbucket/ddev.sh` | `ddev.sh build\|composer\|exec ...` - ddev commands in a Bitbucket pipeline step, see [Bitbucket pipeline](#bitbucket-pipeline) |
@@ -24,7 +25,7 @@ An update is the same command with a newer version.
 | Variable | Used by | Example |
 |---|---|---|
 | `BUILD_LINKS` | build | `config/.htaccess frontend/build/{assets,css,js,snippets}` (linked into `public/`) |
-| `BUILD_FRONTEND` | build | `frontend` (package.json scripts `build` and `ci`, empty: no frontend build) |
+| `BUILD_FRONTEND` | build, serve | `frontend` (package.json scripts `build`, `ci` and `serve`, empty: no frontend build) |
 | `DATASET_DATABASE_URL`, `DATASET_FILES_URL` | init | dataset urls on the NAS |
 | `BACKEND_ADMIN_USERNAME`, `BACKEND_ADMIN_PASSWORD` | init | backend admin, created if missing |
 
@@ -34,6 +35,16 @@ The initial setup runs automatically on the first `ddev start` with this hook in
 hooks:
   post-start:
     - exec-host: '[ -f var/transient/ENABLE_INSTALL_TOOL ] || ddev init'
+```
+
+`ddev serve` is reachable at `https://<project url>:3000` with the dev server port exposed in `.ddev/config.yaml`:
+
+```yaml
+web_extra_exposed_ports:
+  - name: Frontend
+    container_port: 3000
+    https_port: 3000
+    http_port: 2999
 ```
 
 ## Bitbucket pipeline

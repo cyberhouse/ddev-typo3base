@@ -2,6 +2,7 @@ name: typo3base
 
 project_files:
   - commands/web/build
+  - commands/web/serve
   - commands/host/init
   - commands/host/ssh-remote
   - bitbucket/ddev.sh

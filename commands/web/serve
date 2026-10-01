@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#ddev-generated
+
+## Description: Start the Vite dev server of the frontend (package.json script "serve")
+## Usage: serve
+## Example: "ddev serve"
+
+set -euo pipefail
+
+# BUILD_FRONTEND (web_environment): frontend directory, see .ddev/commands/web/build
+[ -n "${BUILD_FRONTEND:-}" ] || { echo "BUILD_FRONTEND is not set in web_environment" >&2; exit 1; }
+cd "$BUILD_FRONTEND"
+exec yarn serve
