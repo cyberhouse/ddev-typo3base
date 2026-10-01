@@ -49,3 +49,8 @@ Changed commands of new TYPO3 versions are added in a new major version of this 
 ## Project specific changes
 
 Remove the `#ddev-generated` line of a file to change it in a project: DDEV no longer overwrites it on updates.
+
+## Contributing
+
+This repository is public: it contains logic only, never values. Credentials, URLs, IP addresses and domains belong
+in the `.ddev/config.yaml` of the project (`web_environment`).
