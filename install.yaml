@@ -1,0 +1,9 @@
+name: typo3base
+
+project_files:
+  - commands/web/build
+  - commands/host/init
+  - commands/host/ssh-remote
+  - bitbucket/setup.sh
+
+ddev_version_constraint: '>= v1.25.4'

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#ddev-generated
+
+## Description: Build TYPO3 (composer) and frontend (yarn) - the pipeline runs exactly the same steps
+## Usage: build [be|fe] [--prod]
+## Example: "ddev build" (all), "ddev build fe" (frontend only), "ddev build --prod" (production build)
+
+set -euo pipefail
+
+target=all
+prod=0
+for arg in "$@"; do
+    case "$arg" in
+        be|fe) target=$arg ;;
+        --prod) prod=1 ;;
+        *) echo "Unknown argument: $arg" >&2; exit 1 ;;
+    esac
+done
+
+# BUILD_LINKS (web_environment): paths linked into public/, brace expansion allowed, e.g. "config/.htaccess frontend/build/{css,js}"
+build_be() {
+    if [ "$prod" -eq 1 ]; then
+        composer install --no-interaction --no-dev --classmap-authoritative
+    else
+        composer install --no-interaction
+    fi
+
+    eval "links=(${BUILD_LINKS:-})"
+    for link in "${links[@]}"; do
+        ln -sfn "../$link" "public/$(basename "$link")"
+    done
+}
+
+# BUILD_FRONTEND (web_environment): frontend directory with package.json scripts "build" (dev) and "ci" (prod)
+build_fe() (
+    [ -n "${BUILD_FRONTEND:-}" ] || return 0
+    cd "$BUILD_FRONTEND"
+    yarn install --silent --frozen-lockfile --prefer-offline
+    if [ "$prod" -eq 1 ]; then
+        yarn ci
+    else
+        yarn build
+    fi
+)
+
+case "$target" in
+    be) build_be ;;
+    fe) build_fe ;;
+    all) build_be; build_fe ;;
+esac
