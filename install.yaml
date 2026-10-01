@@ -4,6 +4,13 @@ project_files:
   - commands/web/build
   - commands/host/init
   - commands/host/ssh-remote
-  - bitbucket/setup.sh
+  - bitbucket/ddev.sh
+  - bitbucket/web-env.sh
+
+post_install_actions:
+  - |
+    #ddev-description:Remove bitbucket/setup.sh of v1.1 (replaced by bitbucket/ddev.sh)
+    file="${DDEV_APPROOT}/.ddev/bitbucket/setup.sh"
+    if grep -q '#ddev-generated' "$file" 2>/dev/null; then rm -f "$file"; fi
 
 ddev_version_constraint: '>= v1.25.4'
