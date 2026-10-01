@@ -1,5 +1,6 @@
 #!/bin/sh
 #ddev-generated
+
 # Prepares and starts DDEV in a Bitbucket pipeline step (image docker:*-cli, runtime v3) as pure
 # build container: only the web container is started - no database, router, ssh-agent or
 # additional services (docker-compose.*.yaml). The project is not reachable in the pipeline.
