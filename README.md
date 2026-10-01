@@ -12,11 +12,8 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 ## Installation / update
 
 ```
-DDEV_GITHUB_TOKEN=$(gh auth token) ddev add-on get cyberhouse/ddev-typo3base --version vX.Y.Z
+ddev add-on get cyberhouse/ddev-typo3base --version vX.Y.Z
 ```
-
-This repository is private: the token of your own GitHub CLI login is used (`gh auth login` once, member of the cyberhouse
-organization), there is no shared token. Projects and pipelines don't need it, they use the committed files.
 
 The files are copied to `.ddev/` and committed with the project, so every project is pinned to a version.
 An update is the same command with a newer version.
