@@ -8,7 +8,7 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 | `commands/web/serve` | `ddev serve` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`) |
 | `commands/host/init` | initial setup (build, datasets, database import into an empty database, TYPO3 bootstrap, admin user) |
 | `commands/host/ssh-remote` | `ddev ssh-remote [environment]` / `ddev bash-ssh` - bash console on a server of `.mage.yml` |
-| `bitbucket/ddev.sh` | `ddev.sh build\|composer\|exec ...` - ddev commands in a Bitbucket pipeline step, see [Bitbucket pipeline](#bitbucket-pipeline) |
+| `bitbucket/ddev.sh` | `ddev.sh build\|composer\|exec\|<host command> ...` - ddev commands in a Bitbucket pipeline step, see [Bitbucket pipeline](#bitbucket-pipeline) |
 | `bitbucket/web-env.sh` | used by `bitbucket/ddev.sh`: php version, Node.js version and `web_environment` of `.ddev/config.yaml` in the web image |
 
 ## Installation / update
@@ -58,6 +58,7 @@ image and the very same `build` command. The repository variable `COMPOSER_AUTH`
 | `ddev build fe --prod` | `.ddev/bitbucket/ddev.sh build fe --prod` (Node.js of `nodejs_version`/`nodejs_root` is installed for `fe` and all targets) |
 | `ddev composer test` | `.ddev/bitbucket/ddev.sh composer test` |
 | `ddev exec typo3 list` | `.ddev/bitbucket/ddev.sh exec typo3 list` |
+| `ddev qa unit` (host command, e.g. of [ddev-quality](https://github.com/cyberhouse/ddev-quality)) | `.ddev/bitbucket/ddev.sh qa unit` |
 
 ```yaml
 ddev: &DDEV
@@ -93,6 +94,11 @@ definitions:
 Notes:
 
 * The frontend build runs inside the docker service, it needs more than the default 1024 MB of the service.
+* Host commands (`.ddev/commands/host`) run in the step itself, with `ddev.sh` as their `ddev`: it only knows
+  `ddev exec`, which starts the web image as `web` in the network `ddev-${DDEV_SITENAME}_default` like ddev, so
+  containers a host command starts in that network (e.g. a selenium) are reachable from it and the other way round.
+  The step image has no bash, a host command for pipelines is a POSIX shell script (`#!/bin/sh`). The
+  `docker-compose.*.yaml` of `.ddev/` are not applied.
 * `ddev.sh` makes the clone dir writable for all: root of the container is an unprivileged user outside of it (user
   namespace remapping of the docker service), e.g. `node_modules` restored from the cache would not be writable.
 * Starting the web image instead of ddev (`ddev start` with image build) or using it as step image (faster by ~15s, but
