@@ -34,6 +34,15 @@ update-alternatives --set php "/usr/bin/php$php_version" > /dev/null 2>&1 \
     || { echo "PHP $php_version (php_version of $config) is not available" >&2; exit 1; }
 while IFS= read -r line; do export "$line"; done < <(yq '.web_environment[]' "$config")
 
+# webimage_extra_packages are installed like ddev does when it builds the image (~10s), e.g. libraries of binaries
+# that node packages download
+packages=$(yq '.webimage_extra_packages // [] | join(" ")' "$config")
+if [ -n "$packages" ]; then
+    apt-get update -qq > /dev/null
+    # shellcheck disable=SC2086
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages > /dev/null
+fi
+
 # Node.js version of nodejs_version/nodejs_root only for the frontend build ("fe" or all targets), otherwise
 # the default version of the image is kept (the download is not needed)
 if [ "$1" = .ddev/commands/web/build ] && [[ " ${*:2} " != *" be "* ]]; then
