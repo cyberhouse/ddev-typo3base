@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+#ddev-generated
+
+## Description: Copy files from, to and between servers of .mage.yml with scp
+## Usage: scp-remote <source>... <target>
+## Example: "ddev scp-remote prod:~/typo3.sql.gz ~/" (prod to local), "ddev scp-remote stage:~/typo3.sql.gz prod:~" (stage to prod), "ddev scp-remote /tmp/data.tar.gz st:/html/var/data" (local to stage, unique prefix)
+## HostWorkingDir: true
+
+set -euo pipefail
+
+# query .magephp.environments with yq of the ddev web image - no running project and no vendor/ needed
+mage() {
+    docker run --rm -i --entrypoint yq "$DDEV_WEBIMAGE" --yaml-fix-merge-anchor-to-spec=true \
+        "explode(.) | .magephp.environments | $1" < "$DDEV_APPROOT/.mage.yml"
+}
+
+# exact name or unique prefix
+resolve() {
+    local name matches=()
+    for name in "${environments[@]}"; do
+        if [ "$name" = "$1" ]; then
+            echo "$name"
+            return
+        fi
+        case "$name" in "$1"*) matches+=("$name") ;; esac
+    done
+    [ "${#matches[@]}" -eq 1 ] || { echo "Unknown or ambiguous environment '$1', available: ${environments[*]}" >&2; return 1; }
+    echo "${matches[0]}"
+}
+
+[ "$#" -ge 2 ] || { echo "Usage: ddev scp-remote <source>... <target> (remote as <environment>:<path>)" >&2; exit 1; }
+
+environments=()
+while IFS= read -r line; do environments+=("$line"); done < <(mage 'keys | .[]')
+
+args=()
+port=''
+ssh_flags=''
+for arg in "$@"; do
+    # <environment>:<path> - a local path with a colon needs a slash, e.g. ./a:b
+    if [[ "$arg" =~ ^([^/.~][^/:]*):(.*)$ ]]; then
+        path=${BASH_REMATCH[2]}
+        environment=$(resolve "${BASH_REMATCH[1]}")
+
+        # user, host, port and ssh flags (one per line)
+        remote=()
+        while IFS= read -r line; do remote+=("$line"); done < <(mage '.["'"$environment"'"] | [.user, (.hosts[0] | split(":") | .[0]), (.hosts[0] | split(":") | .[1] // "22"), (.ssh.flags // "")] | .[]')
+
+        # scp has one port for all hosts
+        [ -z "$port" ] || [ "$port" = "${remote[2]}" ] || { echo "Environments with different ssh ports are not supported" >&2; exit 1; }
+        port=${remote[2]}
+        if [ -n "${remote[3]}" ]; then
+            case " $ssh_flags " in *" ${remote[3]} "*) ;; *) ssh_flags+="${ssh_flags:+ }${remote[3]}" ;; esac
+        fi
+
+        # relative paths are relative to the home directory, no "~" needed (sftp of old servers can't expand it)
+        case "$path" in '~') path='' ;; '~/'*) path=${path#"~/"} ;; esac
+        args+=("${remote[0]}@${remote[1]}:$path")
+    else
+        args+=("$arg")
+    fi
+done
+[ -n "$port" ] || { echo "No remote <environment>:<path> given, available: ${environments[*]}" >&2; exit 1; }
+
+# -3: copies between two servers go through this host, the servers need no access to each other
+printf "\e[1;46m scp -3 -r %s-P %s %s \e[0m\n" "${ssh_flags:+$ssh_flags }" "$port" "${args[*]}" >&2
+# shellcheck disable=SC2086 # ssh flags must be split
+exec scp -3 -r $ssh_flags -P "$port" "${args[@]}"

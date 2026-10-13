@@ -5,6 +5,7 @@ project_files:
   - commands/web/serve
   - commands/host/init
   - commands/host/ssh-remote
+  - commands/host/scp-remote
   - bitbucket/ddev.sh
   - bitbucket/web-env.sh
 
