@@ -4,7 +4,7 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 
 | File | Purpose |
 |---|---|
-| `commands/web/build` | `ddev build [be\|fe] [--prod] [--frontend=<dir>]` - composer + frontend build, the pipeline runs the same command |
+| `commands/web/build` | `ddev build [be\|fe] [--prod] [--frontend=<dir>] [--backend=<dir>]` - composer + frontend build, the pipeline runs the same command |
 | `commands/web/serve` | `ddev serve [--frontend=<dir>]` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`), runs `build fe --serve` |
 | `commands/host/init` | initial setup (build, datasets, database import into an empty database, TYPO3 bootstrap, admin user) |
 | `commands/host/ssh-remote` | `ddev ssh-remote [environment]` / `ddev bash-ssh` - bash console on a server of `.mage.yml`, without environment a menu filtered by typing |
@@ -55,6 +55,10 @@ are built one at a time with `--frontend=<dir>`, e.g. one per pipeline step with
 `.n-node-version`) runs with that Node.js version (`n exec`, downloads cached in the global ddev cache), otherwise with the
 one of `nodejs_version`/`nodejs_root`. `ddev serve` installs the dependencies first, like the build (npm: `npm install`,
 `npm ci` only for `--prod`).
+
+Another composer project (e.g. a second backend) is built with `--backend=<dir>`, e.g.
+`.ddev/bitbucket/ddev.sh build be --prod --backend=api`: composer in that directory with the php version of the
+project, `BUILD_LINKS` only belong to the project root.
 
 ## Bitbucket pipeline
 

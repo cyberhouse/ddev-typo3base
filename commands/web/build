@@ -2,8 +2,8 @@
 #ddev-generated
 
 ## Description: Build TYPO3 (composer) and frontend (npm, pnpm or yarn) - the pipeline runs exactly the same steps
-## Usage: build [be|fe] [--prod] [--frontend=<dir>]
-## Example: "ddev build" (all), "ddev build fe" (frontend only), "ddev build --prod" (production build), "ddev build fe --frontend=frontend-shop" (another frontend)
+## Usage: build [be|fe] [--prod] [--frontend=<dir>] [--backend=<dir>]
+## Example: "ddev build" (all), "ddev build fe" (frontend only), "ddev build --prod" (production build), "ddev build fe --frontend=frontend-shop" (another frontend), "ddev build be --backend=api" (another backend)
 
 set -euo pipefail
 
@@ -11,25 +11,30 @@ target=all
 prod=0
 script=build
 frontend=${BUILD_FRONTEND:-}
+backend=.
 for arg in "$@"; do
     case "$arg" in
         be|fe) target=$arg ;;
         --prod) prod=1; script=ci ;;
         --frontend=*) frontend=${arg#--frontend=} ;;
+        --backend=*) backend=${arg#--backend=} ;;
         # used by "ddev serve": dev server instead of the build
         --serve) script=serve ;;
         *) echo "Unknown argument: $arg" >&2; exit 1 ;;
     esac
 done
 
-# BUILD_LINKS (web_environment): paths linked into public/, brace expansion allowed, e.g. "config/.htaccess frontend/build/{css,js}"
-build_be() {
+# --backend: composer project in another directory (e.g. a second backend), BUILD_LINKS (web_environment) belong to
+# the project root: paths linked into public/, brace expansion allowed, e.g. "config/.htaccess frontend/build/{css,js}"
+build_be() (
+    cd "$backend"
     if [ "$prod" -eq 1 ]; then
         composer install --no-interaction --no-dev --classmap-authoritative
     else
         composer install --no-interaction
     fi
 
+    [ "$backend" = . ] || return 0
     eval "links=(${BUILD_LINKS:-})"
     for link in "${links[@]}"; do
         target="public/$(basename "$link")"
@@ -40,7 +45,7 @@ build_be() {
         fi
         ln -sfn "../$link" "$target"
     done
-}
+)
 
 # Node.js version of a version file of the frontend (.n-node-version, .node-version, .nvmrc), otherwise the one of
 # nodejs_version/nodejs_root - downloads are cached in the global ddev cache (pipeline: home directory)
