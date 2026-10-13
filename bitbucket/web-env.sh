@@ -23,7 +23,15 @@ case "${1:-}" in
         ;;
 esac
 
-update-alternatives --set php "/usr/bin/php$(yq '.php_version' "$config")" > /dev/null 2>&1
+php_version=$(yq '.php_version' "$config")
+# the image only contains the current php versions, older ones are installed like ddev does when it builds the image
+# (~30s), xdebug and xhprof disabled like in the web container of ddev
+if [ ! -x "/usr/bin/php$php_version" ]; then
+    install_php_extensions.sh "php$php_version" "$(dpkg --print-architecture)" > /dev/null
+    phpdismod -v "$php_version" xdebug xhprof
+fi
+update-alternatives --set php "/usr/bin/php$php_version" > /dev/null 2>&1 \
+    || { echo "PHP $php_version (php_version of $config) is not available" >&2; exit 1; }
 while IFS= read -r line; do export "$line"; done < <(yq '.web_environment[]' "$config")
 
 # Node.js version of nodejs_version/nodejs_root only for the frontend build ("fe" or all targets), otherwise
