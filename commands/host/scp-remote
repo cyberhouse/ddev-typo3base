@@ -68,7 +68,13 @@ for arg in "$@"; do
 done
 [ -n "$port" ] || { echo "No remote <environment>:<path> given, available: ${environments[*]}" >&2; exit 1; }
 
+# ssh flags are split like the shell of magallanes does, e.g. -o "ProxyCommand ssh -W %h:%p jump" (xargs: quotes
+# without expansions)
+flags=()
+if [ -n "$ssh_flags" ]; then
+    while IFS= read -r line; do flags+=("$line"); done < <(xargs printf '%s\n' <<< "$ssh_flags")
+fi
+
 # -3: copies between two servers go through this host, the servers need no access to each other
 printf "\e[1;46m scp -3 -r %s-P %s %s \e[0m\n" "${ssh_flags:+$ssh_flags }" "$port" "${args[*]}" >&2
-# shellcheck disable=SC2086 # ssh flags must be split
-exec scp -3 -r $ssh_flags -P "$port" "${args[@]}"
+exec scp -3 -r ${flags[@]+"${flags[@]}"} -P "$port" "${args[@]}"
