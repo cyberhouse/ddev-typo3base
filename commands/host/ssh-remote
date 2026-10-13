@@ -4,7 +4,7 @@
 ## Description: Open a bash console on a remote server of .mage.yml
 ## Usage: ssh-remote [environment]
 ## Aliases: bash-ssh
-## Example: "ddev ssh-remote prod", "ddev ssh-remote pl" (unique prefix), "ddev ssh-remote" (select with arrow keys)
+## Example: "ddev ssh-remote prod", "ddev ssh-remote pl" (unique prefix), "ddev ssh-remote" (select with arrow keys, type to filter)
 
 set -euo pipefail
 
@@ -14,31 +14,54 @@ mage() {
         "explode(.) | .magephp.environments | $1" < .mage.yml
 }
 
-# arrow key menu on stderr, sets $stage
+# arrow key menu on stderr, typing filters it (contains, case-insensitive), sets $stage
 select_stage() {
-    local selected=0 count=${#environments[@]} key i
+    local filter='' selected=0 offset=0 drawn=0 max=10 count key i name matches=()
 
     trap 'printf "\e[?25h" >&2' EXIT
-    printf "Select environment (↑/↓, Enter):\n\e[?25l" >&2
+    printf "\e[?25l" >&2
+    shopt -s nocasematch
     while true; do
-        for ((i = 0; i < count; i++)); do
-            if [ "$i" -eq "$selected" ]; then
-                printf "\e[2K\e[36m> %s\e[0m\n" "${environments[$i]}" >&2
-            else
-                printf "\e[2K  %s\n" "${environments[$i]}" >&2
-            fi
+        matches=()
+        for name in "${environments[@]}"; do
+            if [[ "$name" == *"$filter"* ]]; then matches+=("$name"); fi
         done
+        count=${#matches[@]}
+
+        # scroll window of max entries around the selected one
+        [ "$selected" -lt "$count" ] || selected=0
+        [ "$selected" -ge "$offset" ] || offset=$selected
+        [ "$selected" -lt $((offset + max)) ] || offset=$((selected - max + 1))
+
+        [ "$drawn" -eq 0 ] || printf "\e[%dA" "$drawn" >&2
+        printf "\e[JSelect environment (type to filter, ↑/↓, Enter): %s\n" "$filter" >&2
+        drawn=1
+        for ((i = offset; i < count && i < offset + max; i++)); do
+            if [ "$i" -eq "$selected" ]; then
+                printf "\e[36m> %s\e[0m\n" "${matches[$i]}" >&2
+            else
+                printf "  %s\n" "${matches[$i]}" >&2
+            fi
+            drawn=$((drawn + 1))
+        done
+        if [ "$count" -gt "$max" ]; then
+            printf "  \e[2m%d/%d\e[0m\n" "$((selected + 1))" "$count" >&2
+            drawn=$((drawn + 1))
+        fi
+
         IFS= read -rsn1 key
         [ "$key" != $'\e' ] || read -rsn2 key
         case "$key" in
-            '[A') selected=$(((selected - 1 + count) % count)) ;;
-            '[B') selected=$(((selected + 1) % count)) ;;
-            '') break ;;
+            '[A') [ "$count" -eq 0 ] || selected=$(((selected - 1 + count) % count)) ;;
+            '[B') [ "$count" -eq 0 ] || selected=$(((selected + 1) % count)) ;;
+            '') [ "$count" -eq 0 ] || break ;;
+            $'\x7f' | $'\b') filter=${filter%?} selected=0 offset=0 ;;
+            [[:print:]]) filter+=$key selected=0 offset=0 ;;
         esac
-        printf "\e[%dA" "$count" >&2
     done
+    shopt -u nocasematch
     printf "\e[?25h" >&2
-    stage=${environments[$selected]}
+    stage=${matches[$selected]}
 }
 
 environments=()

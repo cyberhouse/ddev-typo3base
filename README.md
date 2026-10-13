@@ -7,7 +7,7 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 | `commands/web/build` | `ddev build [be\|fe] [--prod]` - composer + frontend build, the pipeline runs the same command |
 | `commands/web/serve` | `ddev serve` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`) |
 | `commands/host/init` | initial setup (build, datasets, database import into an empty database, TYPO3 bootstrap, admin user) |
-| `commands/host/ssh-remote` | `ddev ssh-remote [environment]` / `ddev bash-ssh` - bash console on a server of `.mage.yml` |
+| `commands/host/ssh-remote` | `ddev ssh-remote [environment]` / `ddev bash-ssh` - bash console on a server of `.mage.yml`, without environment a menu filtered by typing |
 | `commands/host/scp-remote` | `ddev scp-remote <source>... <target>` - scp from, to and between servers of `.mage.yml`, remote as `<environment>:<path>` (e.g. `prod:~/typo3.sql.gz`, relative paths like `prod:composer.json` in `<host_path>/current`), copies between two servers go through the local host |
 | `bitbucket/ddev.sh` | `ddev.sh build\|composer\|exec\|<host command> ...` - ddev commands in a Bitbucket pipeline step, see [Bitbucket pipeline](#bitbucket-pipeline) |
 | `bitbucket/web-env.sh` | used by `bitbucket/ddev.sh`: php version, Node.js version and `web_environment` of `.ddev/config.yaml` in the web image |
