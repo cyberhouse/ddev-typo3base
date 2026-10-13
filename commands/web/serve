@@ -1,25 +1,11 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Start the dev server of the frontend (package.json script "serve")
+## Description: Install the frontend dependencies and start its dev server (package.json script "serve")
 ## Usage: serve [--frontend=<dir>]
 ## Example: "ddev serve", "ddev serve --frontend=frontend-shop" (another frontend)
 
 set -euo pipefail
 
-# BUILD_FRONTEND (web_environment) or --frontend: frontend directory, see .ddev/commands/web/build
-frontend=${BUILD_FRONTEND:-}
-for arg in "$@"; do
-    case "$arg" in
-        --frontend=*) frontend=${arg#--frontend=} ;;
-        *) echo "Unknown argument: $arg" >&2; exit 1 ;;
-    esac
-done
-[ -n "$frontend" ] || { echo "BUILD_FRONTEND is not set in web_environment" >&2; exit 1; }
-cd "$frontend"
-if [ -f package-lock.json ]; then
-    exec npm run serve
-elif [ -f pnpm-lock.yaml ]; then
-    exec npx --yes "$(node -p 'require("./package.json").packageManager?.match(/^pnpm@[^+]*/)?.[0] ?? "pnpm"')" run serve
-fi
-exec yarn serve
+# same package manager and Node.js version as the build (BUILD_FRONTEND or --frontend, see .ddev/commands/web/build)
+exec "$(dirname "$0")/build" fe --serve "$@"

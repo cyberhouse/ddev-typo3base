@@ -5,7 +5,7 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 | File | Purpose |
 |---|---|
 | `commands/web/build` | `ddev build [be\|fe] [--prod] [--frontend=<dir>]` - composer + frontend build, the pipeline runs the same command |
-| `commands/web/serve` | `ddev serve [--frontend=<dir>]` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`) |
+| `commands/web/serve` | `ddev serve [--frontend=<dir>]` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`), runs `build fe --serve` |
 | `commands/host/init` | initial setup (build, datasets, database import into an empty database, TYPO3 bootstrap, admin user) |
 | `commands/host/ssh-remote` | `ddev ssh-remote [environment]` / `ddev bash-ssh` - bash console on a server of `.mage.yml`, without environment a menu filtered by typing |
 | `commands/host/scp-remote` | `ddev scp-remote <source>... <target>` - scp from, to and between servers of `.mage.yml`, remote as `<environment>:<path>` (e.g. `prod:~/typo3.sql.gz`, relative paths like `prod:composer.json` in `<host_path>/current`), copies between two servers go through the local host |
@@ -50,8 +50,11 @@ web_extra_exposed_ports:
 
 The package manager of the frontend is chosen by its lock file: `package-lock.json` npm, `pnpm-lock.yaml` pnpm (not
 part of the image, run by `npx` in the version of `packageManager` in `package.json`), otherwise yarn. Several frontends
-(one Node.js version of `nodejs_version`/`nodejs_root` for all) are built one at a time with `--frontend=<dir>`, e.g.
-one per pipeline step with `.ddev/bitbucket/ddev.sh build fe --prod --frontend=$APP`.
+are built one at a time with `--frontend=<dir>`, e.g. one per pipeline step with
+`.ddev/bitbucket/ddev.sh build fe --prod --frontend=$APP`. A frontend with a version file (`.nvmrc`, `.node-version`,
+`.n-node-version`) runs with that Node.js version (`n exec`, downloads cached in the global ddev cache), otherwise with the
+one of `nodejs_version`/`nodejs_root`. `ddev serve` installs the dependencies first, like the build (npm: `npm install`,
+`npm ci` only for `--prod`).
 
 ## Bitbucket pipeline
 

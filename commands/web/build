@@ -9,12 +9,15 @@ set -euo pipefail
 
 target=all
 prod=0
+script=build
 frontend=${BUILD_FRONTEND:-}
 for arg in "$@"; do
     case "$arg" in
         be|fe) target=$arg ;;
-        --prod) prod=1 ;;
+        --prod) prod=1; script=ci ;;
         --frontend=*) frontend=${arg#--frontend=} ;;
+        # used by "ddev serve": dev server instead of the build
+        --serve) script=serve ;;
         *) echo "Unknown argument: $arg" >&2; exit 1 ;;
     esac
 done
@@ -39,24 +42,42 @@ build_be() {
     done
 }
 
-# BUILD_FRONTEND (web_environment) or --frontend: frontend directory with package.json scripts "build" (dev) and
-# "ci" (prod), the package manager is chosen by the lock file
+# Node.js version of a version file of the frontend (.n-node-version, .node-version, .nvmrc), otherwise the one of
+# nodejs_version/nodejs_root - downloads are cached in the global ddev cache (pipeline: home directory)
+node_run() {
+    if [ -f .n-node-version ] || [ -f .node-version ] || [ -f .nvmrc ]; then
+        local cache=$HOME/.cache
+        [ ! -w /mnt/ddev-global-cache ] || cache=/mnt/ddev-global-cache
+        N_CACHE_PREFIX=$cache n exec --quiet --download auto "$@"
+    else
+        "$@"
+    fi
+}
+
+# BUILD_FRONTEND (web_environment) or --frontend: frontend directory with package.json scripts "build" (dev), "ci"
+# (prod) and "serve" (dev server), the package manager is chosen by the lock file
 build_fe() (
-    [ -n "$frontend" ] || return 0
+    if [ -z "$frontend" ]; then
+        [ "$script" != serve ] || { echo "BUILD_FRONTEND is not set in web_environment" >&2; exit 1; }
+        return 0
+    fi
     cd "$frontend"
-    script=build
-    [ "$prod" -eq 0 ] || script=ci
     if [ -f package-lock.json ]; then
-        npm ci
-        npm run "$script"
+        # npm ci removes node_modules, only for the production build
+        if [ "$prod" -eq 1 ]; then
+            node_run npm ci
+        else
+            node_run npm install
+        fi
+        node_run npm run "$script"
     elif [ -f pnpm-lock.yaml ]; then
         # pnpm is not part of the image: version of "packageManager" in package.json, otherwise the latest
-        pnpm=$(node -p 'require("./package.json").packageManager?.match(/^pnpm@[^+]*/)?.[0] ?? "pnpm"')
-        npx --yes "$pnpm" install --frozen-lockfile
-        npx --yes "$pnpm" run "$script"
+        pnpm=$(node_run node -p 'require("./package.json").packageManager?.match(/^pnpm@[^+]*/)?.[0] ?? "pnpm"')
+        node_run npx --yes "$pnpm" install --frozen-lockfile
+        node_run npx --yes "$pnpm" run "$script"
     else
-        yarn install --silent --frozen-lockfile --prefer-offline
-        yarn "$script"
+        node_run yarn install --silent --frozen-lockfile --prefer-offline
+        node_run yarn "$script"
     fi
 )
 
