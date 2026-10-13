@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Build TYPO3 (composer) and frontend (yarn) - the pipeline runs exactly the same steps
-## Usage: build [be|fe] [--prod]
-## Example: "ddev build" (all), "ddev build fe" (frontend only), "ddev build --prod" (production build)
+## Description: Build TYPO3 (composer) and frontend (npm, pnpm or yarn) - the pipeline runs exactly the same steps
+## Usage: build [be|fe] [--prod] [--frontend=<dir>]
+## Example: "ddev build" (all), "ddev build fe" (frontend only), "ddev build --prod" (production build), "ddev build fe --frontend=frontend-shop" (another frontend)
 
 set -euo pipefail
 
 target=all
 prod=0
+frontend=${BUILD_FRONTEND:-}
 for arg in "$@"; do
     case "$arg" in
         be|fe) target=$arg ;;
         --prod) prod=1 ;;
+        --frontend=*) frontend=${arg#--frontend=} ;;
         *) echo "Unknown argument: $arg" >&2; exit 1 ;;
     esac
 done
@@ -37,15 +39,24 @@ build_be() {
     done
 }
 
-# BUILD_FRONTEND (web_environment): frontend directory with package.json scripts "build" (dev) and "ci" (prod)
+# BUILD_FRONTEND (web_environment) or --frontend: frontend directory with package.json scripts "build" (dev) and
+# "ci" (prod), the package manager is chosen by the lock file
 build_fe() (
-    [ -n "${BUILD_FRONTEND:-}" ] || return 0
-    cd "$BUILD_FRONTEND"
-    yarn install --silent --frozen-lockfile --prefer-offline
-    if [ "$prod" -eq 1 ]; then
-        yarn ci
+    [ -n "$frontend" ] || return 0
+    cd "$frontend"
+    script=build
+    [ "$prod" -eq 0 ] || script=ci
+    if [ -f package-lock.json ]; then
+        npm ci
+        npm run "$script"
+    elif [ -f pnpm-lock.yaml ]; then
+        # pnpm is not part of the image: version of "packageManager" in package.json, otherwise the latest
+        pnpm=$(node -p 'require("./package.json").packageManager?.match(/^pnpm@[^+]*/)?.[0] ?? "pnpm"')
+        npx --yes "$pnpm" install --frozen-lockfile
+        npx --yes "$pnpm" run "$script"
     else
-        yarn build
+        yarn install --silent --frozen-lockfile --prefer-offline
+        yarn "$script"
     fi
 )
 

@@ -4,8 +4,8 @@ DDEV add-on with the shared commands of Cyberhouse TYPO3 projects based on [typo
 
 | File | Purpose |
 |---|---|
-| `commands/web/build` | `ddev build [be\|fe] [--prod]` - composer + frontend build, the pipeline runs the same command |
-| `commands/web/serve` | `ddev serve` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`) |
+| `commands/web/build` | `ddev build [be\|fe] [--prod] [--frontend=<dir>]` - composer + frontend build, the pipeline runs the same command |
+| `commands/web/serve` | `ddev serve [--frontend=<dir>]` - frontend dev server (package.json script `serve`, must listen on all interfaces, e.g. `vite --host`) |
 | `commands/host/init` | initial setup (build, datasets, database import into an empty database, TYPO3 bootstrap, admin user) |
 | `commands/host/ssh-remote` | `ddev ssh-remote [environment]` / `ddev bash-ssh` - bash console on a server of `.mage.yml`, without environment a menu filtered by typing |
 | `commands/host/scp-remote` | `ddev scp-remote <source>... <target>` - scp from, to and between servers of `.mage.yml`, remote as `<environment>:<path>` (e.g. `prod:~/typo3.sql.gz`, relative paths like `prod:composer.json` in `<host_path>/current`), copies between two servers go through the local host |
@@ -26,7 +26,7 @@ An update is the same command with a newer version.
 | Variable | Used by | Example |
 |---|---|---|
 | `BUILD_LINKS` | build | `config/.htaccess frontend/build/{assets,css,js,snippets}` (linked into `public/`) |
-| `BUILD_FRONTEND` | build, serve | `frontend` (package.json scripts `build`, `ci` and `serve`, empty: no frontend build) |
+| `BUILD_FRONTEND` | build, serve | `frontend` (package.json scripts `build`, `ci` and `serve`, empty: no frontend build, `--frontend=<dir>` builds another one) |
 | `DATASET_DATABASE_URL`, `DATASET_FILES_URL` | init | dataset urls on the NAS |
 | `BACKEND_ADMIN_USERNAME`, `BACKEND_ADMIN_PASSWORD` | init | backend admin, created if missing |
 
@@ -47,6 +47,11 @@ web_extra_exposed_ports:
     https_port: 3000
     http_port: 2999
 ```
+
+The package manager of the frontend is chosen by its lock file: `package-lock.json` npm, `pnpm-lock.yaml` pnpm (not
+part of the image, run by `npx` in the version of `packageManager` in `package.json`), otherwise yarn. Several frontends
+(one Node.js version of `nodejs_version`/`nodejs_root` for all) are built one at a time with `--frontend=<dir>`, e.g.
+one per pipeline step with `.ddev/bitbucket/ddev.sh build fe --prod --frontend=$APP`.
 
 ## Bitbucket pipeline
 
