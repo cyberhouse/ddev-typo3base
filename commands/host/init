@@ -8,8 +8,14 @@
 set -euo pipefail
 
 # download to a temporary file first, an aborted download must not be taken for a complete dataset (urls: web_environment)
+# datasets are optional: skipped if their url is not set
 fetch() {
-    [ -f ".ddev/data/$1" ] || ddev exec "curl -fL --connect-timeout 10 -o .ddev/data/$1.part \"\$$2\" && mv .ddev/data/$1.part .ddev/data/$1"
+    [ ! -f ".ddev/data/$1" ] || return 0
+    if ddev exec "[ -n \"\${$2:-}\" ]"; then
+        ddev exec "curl -fL --connect-timeout 10 -o .ddev/data/$1.part \"\$$2\" && mv .ddev/data/$1.part .ddev/data/$1"
+    else
+        echo "$2 not set - $1 skipped" >&2
+    fi
 }
 
 ddev build
@@ -20,9 +26,11 @@ fetch data.tar.gz DATASET_FILES_URL
 [ -f config/system/settings.php ] || printf '<?php return [];' > config/system/settings.php
 
 # import into an empty database only (like the former mysql entrypoint)
-[ "$(ddev mysql -N -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()')" != "0" ] \
-    || ddev import-db --file=.ddev/data/typo3.sql.gz
-ddev exec tar -xzf .ddev/data/data.tar.gz -C public/
+if [ -f .ddev/data/typo3.sql.gz ] \
+    && [ "$(ddev mysql -N -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()')" = "0" ]; then
+    ddev import-db --file=.ddev/data/typo3.sql.gz
+fi
+[ ! -f .ddev/data/data.tar.gz ] || ddev exec tar -xzf .ddev/data/data.tar.gz -C public/
 
 # bootstrap of the deployment (.mage.yml) with TYPO3 core commands, typo3-console commands only if installed
 # (schema first, as extension:setup needs a current be_users table and the dataset can be older than the code)
