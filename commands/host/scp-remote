@@ -3,7 +3,7 @@
 
 ## Description: Copy files from, to and between servers of .mage.yml with scp
 ## Usage: scp-remote <source>... <target>
-## Example: "ddev scp-remote prod:~/typo3.sql.gz ~/" (prod to local), "ddev scp-remote stage:~/typo3.sql.gz prod:~" (stage to prod), "ddev scp-remote /tmp/data.tar.gz st:/html/var/data" (local to stage, unique prefix)
+## Example: "ddev scp-remote stage:composer.json ." (from <host_path>/current of stage), "ddev scp-remote prod:~/typo3.sql.gz ~/" (prod to local), "ddev scp-remote stage:~/typo3.sql.gz prod:~" (stage to prod), "ddev scp-remote /tmp/data.tar.gz st:/html/var/data" (local to stage, unique prefix)
 ## HostWorkingDir: true
 
 set -euo pipefail
@@ -42,9 +42,9 @@ for arg in "$@"; do
         path=${BASH_REMATCH[2]}
         environment=$(resolve "${BASH_REMATCH[1]}")
 
-        # user, host, port and ssh flags (one per line)
+        # user, host, port, ssh flags and path (one per line)
         remote=()
-        while IFS= read -r line; do remote+=("$line"); done < <(mage '.["'"$environment"'"] | [.user, (.hosts[0] | split(":") | .[0]), (.hosts[0] | split(":") | .[1] // "22"), (.ssh.flags // "")] | .[]')
+        while IFS= read -r line; do remote+=("$line"); done < <(mage '.["'"$environment"'"] | [.user, (.hosts[0] | split(":") | .[0]), (.hosts[0] | split(":") | .[1] // "22"), (.ssh.flags // ""), .host_path] | .[]')
 
         # scp has one port for all hosts
         [ -z "$port" ] || [ "$port" = "${remote[2]}" ] || { echo "Environments with different ssh ports are not supported" >&2; exit 1; }
@@ -53,8 +53,14 @@ for arg in "$@"; do
             case " $ssh_flags " in *" ${remote[3]} "*) ;; *) ssh_flags+="${ssh_flags:+ }${remote[3]}" ;; esac
         fi
 
-        # relative paths are relative to the home directory, no "~" needed (sftp of old servers can't expand it)
-        case "$path" in '~') path='' ;; '~/'*) path=${path#"~/"} ;; esac
+        # relative paths are relative to the current release (like ssh-remote), "~" to the home directory
+        # (passed without "~" as relative path, sftp of old servers can't expand it)
+        case "$path" in
+            '~') path='' ;;
+            '~/'*) path=${path#"~/"} ;;
+            /*) ;;
+            *) path="${remote[4]}/current${path:+/$path}" ;;
+        esac
         args+=("${remote[0]}@${remote[1]}:$path")
     else
         args+=("$arg")
