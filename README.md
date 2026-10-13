@@ -49,7 +49,8 @@ web_extra_exposed_ports:
 ```
 
 The package manager of the frontend is chosen by its lock file: `package-lock.json` npm, `pnpm-lock.yaml` pnpm (not
-part of the image, run by `npx` in the version of `packageManager` in `package.json`), otherwise yarn. Several frontends
+part of the image, run by `npx` in the version of `packageManager` in `package.json`; its store is created as
+`.pnpm-store` in the project root, add it to `.gitignore`), otherwise yarn. Several frontends
 are built one at a time with `--frontend=<dir>`, e.g. one per pipeline step with
 `.ddev/bitbucket/ddev.sh build fe --prod --frontend=$APP`. A frontend with a version file (`.nvmrc`, `.node-version`,
 `.n-node-version`) runs with that Node.js version (`n exec`, downloads cached in the global ddev cache), otherwise with the
