@@ -11,18 +11,36 @@ set -euo pipefail
 # datasets are optional: skipped if their url is not set
 fetch() {
     [ ! -f ".ddev/data/$1" ] || return 0
-    if ddev exec "[ -n \"\${$2:-}\" ]"; then
-        ddev exec "curl -fL --connect-timeout 10 -o .ddev/data/$1.part \"\$$2\" && mv .ddev/data/$1.part .ddev/data/$1"
-    else
+    if ! ddev exec "[ -n \"\${$2:-}\" ]"; then
         echo "$2 not set - $1 skipped" >&2
+        return 0
     fi
+    # connection only (any http status), a clear message instead of a curl timeout - retry (e.g. after connecting to
+    # the network meanwhile), ignore or abort, without a terminal abort (the next start runs the setup again)
+    local answer
+    until ddev exec "curl -sI --connect-timeout 10 -o /dev/null \"\$$2\"" > /dev/null 2>&1; do
+        printf '\033[31mDataset %s could not be downloaded, make sure %s is reachable\033[0m\n' \
+            "$1" "$(ddev exec "printf %s \"\$$2\"")" >&2
+        if ! { exec 3< /dev/tty; } 2> /dev/null; then
+            printf 'Try again, or put it to .ddev/data/%s yourself\n' "$1" >&2
+            exit 1
+        fi
+        printf '[R]etry, [i]gnore (continue without it) or [a]bort? ' >&2
+        read -r -u 3 answer || answer=a
+        case "$answer" in
+            i|I) echo "$1 skipped" >&2; return 0 ;;
+            a|A) exit 1 ;;
+        esac
+    done
+    ddev exec "curl -fL --connect-timeout 10 -o .ddev/data/$1.part \"\$$2\" && mv .ddev/data/$1.part .ddev/data/$1"
 }
 
-ddev build
-
+# datasets first: asks before the build if they can't be downloaded
 mkdir -p .ddev/data
 fetch typo3.sql.gz DATASET_DATABASE_URL
 fetch data.tar.gz DATASET_FILES_URL
+
+ddev build
 [ -f config/system/settings.php ] || printf '<?php return [];' > config/system/settings.php
 
 # import into an empty database only (like the former mysql entrypoint)
