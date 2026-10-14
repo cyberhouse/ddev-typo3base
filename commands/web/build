@@ -49,12 +49,14 @@ build_be() (
 
 # Node.js version of a version file of the frontend (.n-node-version, .node-version, .nvmrc), otherwise the one of
 # nodejs_version/nodejs_root - downloads are cached in the global ddev cache (pipeline: home directory)
-# Without n (outside of the ddev image, e.g. a node image as pipeline step image) the Node.js of the image is used
+# Without n (outside of the ddev image, e.g. a node image as pipeline step image) n is run by npx
 node_run() {
-    if command -v n > /dev/null && { [ -f .n-node-version ] || [ -f .node-version ] || [ -f .nvmrc ]; }; then
-        local cache=$HOME/.cache
+    if [ -f .n-node-version ] || [ -f .node-version ] || [ -f .nvmrc ]; then
+        local cache=$HOME/.cache n=(n)
         [ ! -w /mnt/ddev-global-cache ] || cache=/mnt/ddev-global-cache
-        N_CACHE_PREFIX=$cache n exec --quiet --download auto "$@"
+        # path by npx from / and run by bash: npm as root runs commands as the owner of the current directory
+        command -v n > /dev/null || n=(bash "$(cd / && npx --yes --package=n@10 -c 'command -v n')")
+        N_CACHE_PREFIX=$cache "${n[@]}" exec --quiet --download auto "$@"
     else
         "$@"
     fi

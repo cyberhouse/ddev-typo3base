@@ -59,7 +59,7 @@ one of `nodejs_version`/`nodejs_root`. `ddev serve` installs the dependencies fi
 
 The frontend build also runs without ddev, e.g. in a node image as step image when the build needs more memory than
 the docker service of `ddev.sh` has (3 GB for 1x steps): `.ddev/commands/web/build fe --prod --frontend=$APP` - without
-`n` the Node.js of the image is used.
+`n` in the image it is run by `npx`, so the version file of the frontend applies there too.
 
 Another composer project (e.g. a second backend) is built with `--backend=<dir>`, e.g.
 `.ddev/bitbucket/ddev.sh build be --prod --backend=api`: composer in that directory with the php version of the
