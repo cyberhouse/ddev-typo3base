@@ -59,5 +59,7 @@ export PATH="$PWD/vendor/bin:$PATH"
 
 # composer cache inside the clone dir (bitbucket cache), auth by repository variable COMPOSER_AUTH
 export COMPOSER_CACHE_DIR="$PWD/.ci-cache/composer"
+# npm cache inside the clone dir (bitbucket cache) - npm ci removes node_modules, so this is the cache to keep
+export npm_config_cache="$PWD/.ci-cache/npm"
 
 exec "$@"

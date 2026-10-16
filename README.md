@@ -112,6 +112,12 @@ definitions:
 Notes:
 
 * The frontend build runs inside the docker service, it needs more than the default 1024 MB of the service.
+* The frontend cache depends on the package manager: yarn keeps `node_modules` (cache `node` above), `npm ci`
+  removes it, so npm projects cache the npm cache instead, which `ddev.sh` puts into the clone dir - with several
+  frontends e.g. `"frontend*/package-lock.json"` as key, steps with `caches: [ npm ]`:
+  ```yaml
+  npm: { key: { files: [ frontend/package-lock.json ] }, path: .ci-cache/npm }
+  ```
 * Host commands (`.ddev/commands/host`) run in the step itself, with `ddev.sh` as their `ddev`: it only knows
   `ddev exec`, which starts the web image as `web` in the network `ddev-${DDEV_SITENAME}_default` like ddev, so
   containers a host command starts in that network (e.g. a selenium) are reachable from it and the other way round.
