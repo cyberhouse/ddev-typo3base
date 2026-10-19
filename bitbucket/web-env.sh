@@ -59,6 +59,8 @@ export PATH="$PWD/vendor/bin:$PATH"
 
 # composer cache inside the clone dir (bitbucket cache), auth by repository variable COMPOSER_AUTH
 export COMPOSER_CACHE_DIR="$PWD/.ci-cache/composer"
+# set git to trust repositories of all owners (safe.directory=*), so the composer cache can be reused in subsequent steps
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0='*'
 # npm cache inside the clone dir (bitbucket cache) - npm ci removes node_modules, so this is the cache to keep
 export npm_config_cache="$PWD/.ci-cache/npm"
 
