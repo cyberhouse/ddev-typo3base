@@ -84,7 +84,9 @@ build_fe() (
         node_run npx --yes "$pnpm" install --frozen-lockfile
         node_run npx --yes "$pnpm" run "$script"
     else
-        node_run yarn install --silent --frozen-lockfile --prefer-offline
+        # libpng of packages built from source (e.g. imagemin plugins) fails to compile its NEON code on arm64,
+        # the variable has to precede node_run, n exec doesn't take assignments as arguments
+        CPPFLAGS="-DPNG_ARM_NEON_OPT=0" node_run yarn install --frozen-lockfile --prefer-offline
         node_run yarn "$script"
     fi
 )
