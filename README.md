@@ -25,7 +25,7 @@ An update is the same command with a newer version.
 
 | Variable | Used by | Example |
 |---|---|---|
-| `BUILD_LINKS` | build | `config/.htaccess frontend/build/{assets,css,js,snippets}` (linked into `public/`) |
+| `BUILD_LINKS` | build | `config/.htaccess frontend/build/{assets,css,js,snippets}` (linked into `public/`), `frontend/build:frontend` (as `public/frontend`, subdirectories allowed; braces around the whole pair: `frontend/build/{css:assets/css,js:assets/js}`) |
 | `BUILD_FRONTEND` | build, serve | `frontend` (package.json scripts `build`, `ci` and `serve`, empty: no frontend build, `--frontend=<dir>` builds another one) |
 | `DATASET_DATABASE_URL`, `DATASET_FILES_URL` | init | dataset urls on the NAS |
 | `BACKEND_ADMIN_USERNAME`, `BACKEND_ADMIN_PASSWORD` | init | backend admin, created if missing |

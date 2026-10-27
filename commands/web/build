@@ -26,6 +26,8 @@ done
 
 # --backend: composer project in another directory (e.g. a second backend), BUILD_LINKS (web_environment) belong to
 # the project root: paths linked into public/, brace expansion allowed, e.g. "config/.htaccess frontend/build/{css,js}"
+# "<path>:<name>" links <path> as public/<name> (subdirectories allowed), e.g. "frontend/build:frontend" - braces
+# around the whole pair: "frontend/build/{css:assets/css,js:assets/js}"
 build_be() (
     cd "$backend"
     if [ "$prod" -eq 1 ]; then
@@ -37,13 +39,21 @@ build_be() (
     [ "$backend" = . ] || return 0
     eval "links=(${BUILD_LINKS:-})"
     for link in "${links[@]}"; do
-        target="public/$(basename "$link")"
+        source=${link%%:*}
+        name=$(basename "$source")
+        [ "$source" = "$link" ] || name=${link#*:}
+        case "$name" in
+            /*|..|../*|*/..|*/../*) echo "$link: the name must stay inside public/" >&2; exit 1 ;;
+        esac
+        target="public/$name"
         # ln would silently create the link inside an existing directory
         if [ -d "$target" ] && [ ! -L "$target" ]; then
-            echo "$target is a directory, expected a link to $link" >&2
+            echo "$target is a directory, expected a link to $source" >&2
             exit 1
         fi
-        ln -sfn "../$link" "$target"
+        # relative link: one ../ per directory of the target (ln -r is missing in alpine images)
+        mkdir -p "$(dirname "$target")"
+        ln -sfn "$(dirname "$target" | sed 's|[^/]*|..|g')/$source" "$target"
     done
 )
 
