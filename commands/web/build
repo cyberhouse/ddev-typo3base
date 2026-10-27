@@ -76,7 +76,9 @@ node_run() {
 # (prod) and "serve" (dev server), the package manager is chosen by the lock file
 build_fe() (
     if [ -z "$frontend" ]; then
-        [ "$script" != serve ] || { echo "BUILD_FRONTEND is not set in web_environment" >&2; exit 1; }
+        # only "ddev build" (all) skips a missing frontend, "build fe" and "serve" would silently do nothing,
+        # e.g. in a node step image without the web_environment
+        [ "$target" = all ] || { echo "No frontend: BUILD_FRONTEND in web_environment or --frontend=<dir>" >&2; exit 1; }
         return 0
     fi
     cd "$frontend"
