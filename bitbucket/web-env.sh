@@ -63,5 +63,7 @@ export COMPOSER_CACHE_DIR="$PWD/.ci-cache/composer"
 git config --global --add safe.directory '*'
 # npm cache inside the clone dir (bitbucket cache) - npm ci removes node_modules, so this is the cache to keep
 export npm_config_cache="$PWD/.ci-cache/npm"
+# created up front: install scripts that read it don't always create it, e.g. sharp <= 0.28 with yarn (npm itself does)
+mkdir -p "$npm_config_cache"
 
 exec "$@"
