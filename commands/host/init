@@ -41,7 +41,15 @@ fetch typo3.sql.gz DATASET_DATABASE_URL
 fetch data.tar.gz DATASET_FILES_URL
 
 ddev build
-[ -f config/system/settings.php ] || printf '<?php return [];' > config/system/settings.php
+# system configuration, so TYPO3 boots without the install tool
+major=$(ddev exec 'php -r "require \"vendor/autoload.php\"; echo (new TYPO3\CMS\Core\Information\Typo3Version())->getMajorVersion();"')
+if [ "$major" -ge 12 ]; then
+    [ -f config/system/settings.php ] || printf '<?php return [];' > config/system/settings.php
+elif [ ! -f public/typo3conf/LocalConfiguration.php ]; then
+    # TYPO3 11: LocalConfiguration.php, with an encryption key (console commands fail without one)
+    key=$(ddev exec 'php -r "echo bin2hex(random_bytes(48));"')
+    printf "<?php return ['SYS' => ['encryptionKey' => '%s']];" "$key" > public/typo3conf/LocalConfiguration.php
+fi
 
 # import into an empty database only (like the former mysql entrypoint)
 if [ -f .ddev/data/typo3.sql.gz ] \
@@ -52,19 +60,22 @@ fi
 
 # bootstrap of the deployment (.mage.yml) with TYPO3 core commands, typo3-console commands only if installed
 # (schema first, as extension:setup needs a current be_users table and the dataset can be older than the code)
-available=$(ddev exec ./vendor/bin/typo3 list --raw)
+# typo3-console < 8 (TYPO3 11) has its commands in typo3cms only, "typo3 list" fails there on commands without description
+typo3=./vendor/bin/typo3
+[ ! -f vendor/bin/typo3cms ] || typo3=./vendor/bin/typo3cms
+available=$(ddev exec "$typo3" list --raw)
 for command in install:fixfolderstructure database:updateschema; do
     if grep -q "^$command " <<< "$available"; then
-        ddev exec ./vendor/bin/typo3 "$command"
+        ddev exec "$typo3" "$command"
     fi
 done
-ddev exec ./vendor/bin/typo3 extension:setup || {
+ddev exec "$typo3" extension:setup || {
     echo "extension:setup failed - a dataset older than the code needs helhum/typo3-console (database:updateschema)" >&2
     exit 1
 }
 # credentials: web_environment in .ddev/config.yaml, silently skipped if the user already exists
-ddev exec './vendor/bin/typo3 backend:user:create -n -a -u "$BACKEND_ADMIN_USERNAME" -p "$BACKEND_ADMIN_PASSWORD" > /dev/null 2>&1 || true'
-ddev exec ./vendor/bin/typo3 cache:flush
+ddev exec "$typo3"' backend:user:create -n -a -u "$BACKEND_ADMIN_USERNAME" -p "$BACKEND_ADMIN_PASSWORD" > /dev/null 2>&1 || true'
+ddev exec "$typo3" cache:flush
 ddev exec 'mkdir -p var/transient && printf KEEP_FILE > var/transient/ENABLE_INSTALL_TOOL'
 
 printf "\033[32mFinished:\033[0m %s/typo3\n" "$DDEV_PRIMARY_URL"

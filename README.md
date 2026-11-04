@@ -136,11 +136,14 @@ Notes:
 `init` uses the TYPO3 core commands `extension:setup`, `backend:user:create` and `cache:flush`.
 `install:fixfolderstructure` and `database:updateschema` of helhum/typo3-console run only if installed - they are needed
 for datasets older than the code (`extension:setup` reads `be_users` before it updates the schema).
+TYPO3 11 (typo3-console 7): `init` creates `public/typo3conf/LocalConfiguration.php` with an encryption key instead of
+`config/system/settings.php` and runs all commands with `typo3cms` (`typo3 list` fails on commands without description,
+`backend:user:create` doesn't exist and is skipped).
 Changed commands of new TYPO3 versions are added in a new major version of this add-on, projects update it together with TYPO3.
 
 | Add-on | Tested with |
 |---|---|
-| v1 | TYPO3 14, typo3-console 9 (optional) |
+| v1 | TYPO3 14, typo3-console 9 (optional); v1.8.11 also TYPO3 11.5 + typo3-console 7 |
 
 ## Project specific changes
 
